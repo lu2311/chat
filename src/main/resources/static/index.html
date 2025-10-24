@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Chat WebSocket STOMP - Proyecto Mensajeria</title>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.0/sockjs.min.js"></script>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+        <style>
+        #messages { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-top: 15px; }
+        .message-entry { margin-bottom: 5px; font-family: monospace; }
+    </style>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <h2>Chat Básico (Proyecto Mensajería)</h2>
+
+        <div>
+            <p><label for="username">Nombre:</label>
+                <input type="text" id="username" value
+                    placeholder="Tu nombre..."></p>
+            <p><label for="message">Mensaje:</label>
+                <textarea name="message" id="message"
+                    placeholder="Escribe tu mensaje..."
+                    onkeypress="if(event.keyCode==13) sendMessage()"></textarea></p>
+            <button onclick="sendMessage()">Enviar</button>
+        </div>
+
+        <hr>
+
+        <div id="messages">
+        </div>
+
+        <script>
+        var stompClient = null;
+        var socket = new SockJS('/ws'); // 1. Conexión al endpoint de Spring Boot
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function onConnected(frame) {
+            console.log('Conectado al Broker STOMP: ' + frame);
+            
+            // 2. Suscripción: El cliente escucha el canal público para recibir mensajes
+            stompClient.subscribe('/topic/public', onMessageReceived); 
+        });
+
+        function sendMessage() {
+            var messageInput = document.getElementById('message');
+            var content = messageInput.value;
+            var sender = document.getElementById('username').value;
+
+            if(content && stompClient) {
+                var chatMessage = {
+                    sender: sender,
+                    content: content
+                };
+                
+                // 3. Envío: Publicar el mensaje al Controller para procesamiento
+                stompClient.send("/app/send", {}, JSON.stringify(chatMessage)); 
+                messageInput.value = ''; // Limpiar input
+            }
+        }
+
+        function onMessageReceived(payload) {
+            // 4. Recepción: Mostrar el mensaje recibido del broker
+            var message = JSON.parse(payload.body);
+            var messagesDiv = document.getElementById('messages');
+            
+            var p = document.createElement('p');
+            p.className = 'message-entry';
+            p.innerHTML = `<strong>[${message.time}] ${message.from}:</strong> ${message.text}`;
+            messagesDiv.appendChild(p);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight; 
+        }
+    </script>
+    </body>
+</html>
